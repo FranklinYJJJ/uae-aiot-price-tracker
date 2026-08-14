@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xiaomi AIoT UAE - Price Tracker</title>
+<style>
+:root{--bg:#0a0e1c;--panel:rgba(255,255,255,.045);--border:rgba(255,255,255,.09);--text:#eef0fb;--muted:#8b93b8;--accent:#7c3aed;--accent2:#22d3ee}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter",sans-serif;background:radial-gradient(circle at 12% -8%,rgba(124,58,237,.35),transparent 42%),radial-gradient(circle at 92% 8%,rgba(34,211,238,.22),transparent 40%),var(--bg);color:var(--text);min-height:100vh}
+header{padding:30px 36px 18px}
+header h1{font-size:22px;background:linear-gradient(90deg,#fff,#b9c2ff 45%,#7be8ff);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:6px}
+header p{color:var(--muted);font-size:13px}
+.container{max-width:1400px;margin:0 auto;padding:0 32px 60px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px;backdrop-filter:blur(10px)}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.01));border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+.kpi .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.kpi .value{font-size:28px;font-weight:700;color:#fff}
+.kpi .value .unit{font-size:11px;font-weight:400;opacity:.7;margin-left:4px}
+.kpi .sub{font-size:11px;color:var(--muted);margin-top:6px}
+.filter-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}
+.filter-bar select,.filter-bar input{border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.04);color:var(--text);min-width:160px}
+.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:var(--accent2)}
+.filter-bar .spacer{flex:1}
+.btn{border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);padding:8px 16px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--accent2);color:#fff}
+.table-wrap{max-height:600px;overflow-y:auto;border-radius:10px}
+.table-wrap thead th{position:sticky;top:0;background:#10131f;z-index:2}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;white-space:nowrap}
+th:hover{color:#fff}
+td{padding:10px 12px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:hover{background:rgba(255,255,255,.03)}
+.price{font-weight:700;color:#fff;text-shadow:0 0 12px rgba(124,58,237,.4)}
+.rating{color:#ffb800}
+.seller{font-size:12px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asin-link{color:#9db4ff;text-decoration:none;font-family:monospace;font-size:12px}
+.asin-link:hover{text-decoration:underline}
+.no-data{color:var(--muted);font-style:italic;font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700}
+.badge.xiaomi{background:linear-gradient(90deg,#ff6900,#ff9a3d);color:#1a0a06}
+</style>
+</head>
+<body>
+<header>
+<h1>Xiaomi AIoT UAE - Amazon.ae Price Tracker</h1>
+<p id="subtitle">Loading...</p>
+</header>
+<div class="container">
+<div class="kpi-grid" id="kpis"></div>
+<div class="card">
+<div class="filter-bar">
+<select id="filterCategory"><option value="">All Categories</option></select>
+<input type="text" id="searchBox" placeholder="Search product name or ASIN...">
+<div class="spacer"></div>
+<button class="btn" onclick="exportCSV()">Export CSV</button>
+</div>
+</div>
+<div class="card">
+<div class="table-wrap">
+<table>
+<thead><tr>
+<th onclick="sortTable('asin')">ASIN</th>
+<th onclick="sortTable('product_name')">Product</th>
+<th onclick="sortTable('category')">Category</th>
+<th onclick="sortTable('lowest_price')">Price (AED)</th>
+<th onclick="sortTable('seller')">Seller</th>
+<th onclick="sortTable('rating')">Rating</th>
+<th onclick="sortTable('review_count')">Reviews</th>
+<th onclick="sortTable('last_updated')">Updated</th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+<p style="font-size:11px;color:var(--muted);margin-top:10px" id="resultCount"></p>
+</div>
+</div>
+<script>
+const ALL_PRODUCTS = [
+{
+"asin": "B0GDXL6G5L",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0GDXL6G5L",
+"product_name": "Xiaomi H50 Robot Vacuum Cleaner with Mop, 10000Pa 3-in-One Station, Dual Mops Auto Wash&amp;Air Drying Dust Collection, ",
+"category": "Robot Vacuums",
+"lowest_price": 1284.0,
+"seller": "inditexstore",
+"rating": 4.4,
+"review_count": null,
+"last_updated": "2026-08-14 15:34"
+},
+{
+"asin": "B0F4X6CTT8",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0F4X6CTT8",
+"product_name": "Xiaomi Robot Vacuum S40C, 2-in-1 Vacuum and Mop, 5000Pa Suction, Smart LDS Navigation, Auto Recharge, High-capacity Dust",
+"category": "Robot Vacuums",
+"lowest_price": 457.0,
+"seller": "Amazon.ae",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:34"
+},
+{
+"asin": "B0FQ6ZQNCH",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FQ6ZQNCH",
+"product_name": "Xiaomi Robot Vacuum S40 – Smart Laser Navigation Robot Mop, Powerful 10000 Pa Suction for Pet Hair, Carpets &amp; Hard F",
+"category": "Robot Vacuums",
+"lowest_price": 599.0,
+"seller": "inditexstore",
+"rating": 3.8,
+"review_count": null,
+"last_updated": "2026-08-14 15:34"
+},
+{
+"asin": "B0F4X6QFSD",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0F4X6QFSD",
+"product_name": "Xiaomi Robot Vacuum H40, 10000Pa powerful suction, LDS Navigation, Smart Mapping, Anti-tangle brush, Auto Dust Emptying,",
+"category": "Robot Vacuums",
+"lowest_price": 899.0,
+"seller": "Amazon.ae",
+"rating": 4.4,
+"review_count": null,
+"last_updated": "2026-08-14 15:35"
+},
+{
+"asin": "B0FD9CXF2W",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FD9CXF2W",
+"product_name": "Xiaomi Robot Vacuum S40 Pro – 15,000Pa Suction, Dual-Extending Arms, LDS Navigation, Smart Carpet Detection, App Control",
+"category": "Robot Vacuums",
+"lowest_price": 995.0,
+"seller": "Smart Traders.",
+"rating": 3.1,
+"review_count": null,
+"last_updated": "2026-08-14 15:35"
+},
+{
+"asin": "B0CFM5NYMM",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0CFM5NYMM",
+"product_name": "Xiaomi Robot Vacuum 5 – 20000Pa Powerful Suction, Lifting LDS for Low Furniture, Anti-Tangle, Smart Floor Cleaning, All-",
+"category": "Robot Vacuums",
+"lowest_price": 1681.0,
+"seller": "Amazon.ae",
+"rating": 3.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:35"
+},
+{
+"asin": "B0FDW2MXC1",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FDW2MXC1",
+"product_name": "Xiaomi Robot Vacuum 5 Pro – Reactive AI Camera Obstacle Avoidance, Lifting LDS for Low Spaces, Powerful 20000Pa Suction,",
+"category": "Robot Vacuums",
+"lowest_price": 2499.0,
+"seller": "Smart Traders.",
+"rating": 5.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:35"
+},
+{
+"asin": "B0DST9MN5H",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0DST9MN5H",
+"product_name": "Xiaomi Smart Air Purifier 4 Compact for Bedroom, Office, Desktop, with 48m² Coverage, Allergen Removal, 230m³/h PCADR, S",
+"category": "Air Purifiers",
+"lowest_price": 293.0,
+"seller": "Amazon.ae",
+"rating": 4.4,
+"review_count": null,
+"last_updated": "2026-08-14 15:36"
+},
+{
+"asin": "B0FT3F3GZF",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FT3F3GZF",
+"product_name": "Xiaomi Air Purifier Pets, Pet Area Hair Dander 360 Suction, HEPA, Quiet",
+"category": "Air Purifiers",
+"lowest_price": 293.0,
+"seller": "Smart Traders.",
+"rating": 3.9,
+"review_count": null,
+"last_updated": "2026-08-14 15:36"
+},
+{
+"asin": "B09QX6JN98",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B09QX6JN98",
+"product_name": "Xiaomi Smart Air Purifier 4 Lite with 75m² Coverage, App/Voice Control, Suitable For Large Room, 360 m³/h PCADR, Oled To",
+"category": "Air Purifiers",
+"lowest_price": 479.0,
+"seller": "Amazon.ae",
+"rating": 5.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:36"
+},
+{
+"asin": "B0FT35J6HX",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FT35J6HX",
+"product_name": "Xiaomi Smart Air Purifier 6, High CADR 443m³/h, Covers Rooms Up to 87.5m², 5-in-1 HEPA Filtration, Smart App &amp; Voice",
+"category": "Air Purifiers",
+"lowest_price": 579.0,
+"seller": "Amazon.ae",
+"rating": 4.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:36"
+},
+{
+"asin": "B09P3PWM8G",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B09P3PWM8G",
+"product_name": "Xiaomi Smart Air Purifier 4 Pro for Large Bedroom 104m², CADR 500m³/h, Voice/APP Control, PM2.5/PM10 dual-effect Air Qua",
+"category": "Air Purifiers",
+"lowest_price": 839.0,
+"seller": "Gamerzhub",
+"rating": 4.4,
+"review_count": null,
+"last_updated": "2026-08-14 15:36"
+},
+{
+"asin": "B0BS3DCGNJ",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0BS3DCGNJ",
+"product_name": "Xiaomi Smart Air Purifier Elite – 600 m³/h CADR, 99.98 % Filter Efficiency, UV‑C &amp; Plasma Sterilization, Ideal for U",
+"category": "Air Purifiers",
+"lowest_price": 1039.0,
+"seller": "inditexstore",
+"rating": 4.4,
+"review_count": null,
+"last_updated": "2026-08-14 15:37"
+},
+{
+"asin": "B0GJS8QGW9",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0GJS8QGW9",
+"product_name": "Xiaomi Mijia Smart Air Purifier Max – Room Size Up to 187㎡ (2 ACPH), High CADR 1006.5 m³/h Large Room Air Cleaner, Whole",
+"category": "Air Purifiers",
+"lowest_price": 1237.0,
+"seller": "inditexstore",
+"rating": 1.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:37"
+},
+{
+"asin": "B0DK98L4RW",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0DK98L4RW",
+"product_name": "Xiaomi Air Fryer Essential 6L, 360° Hot Air Circulation, OLED Touchscreen, 40–200°C Adjustable Temperature, 100+ Smart R",
+"category": "Air Fryers",
+"lowest_price": 218.0,
+"seller": "inditexstore",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:37"
+},
+{
+"asin": "B0FLPT4ZLN",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FLPT4ZLN",
+"product_name": "Xiaomi Air Fryer 6.5L, 1700W Large Capacity Air Fryer, 360° Hot Air Circulation, Low-Oil Healthy Cooking, 7 Preset Progr",
+"category": "Air Fryers",
+"lowest_price": 235.0,
+"seller": "Amazon.ae",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:37"
+},
+{
+"asin": "B0FLNPYL2L",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FLNPYL2L",
+"product_name": "Xiaomi Air Fryer 6.5L, 1700W Large Capacity Air Fryer, 360° Hot Air Circulation, Low-Oil Healthy Cooking, 7 Preset Progr",
+"category": "Air Fryers",
+"lowest_price": 239.0,
+"seller": "Amazon.ae",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:38"
+},
+{
+"asin": "B0FS7WHQ1P",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FS7WHQ1P",
+"product_name": "Xiaomi Dual Zone Air Fryer 10L, 2 Baskets (3.5L + 6.5L), 2700W, 6-in-1 Functions – Air Fry, Roast, Bake, Grill, Reheat, ",
+"category": "Air Fryers",
+"lowest_price": 372.0,
+"seller": "Amazon.ae",
+"rating": 3.5,
+"review_count": null,
+"last_updated": "2026-08-14 15:38"
+},
+{
+"asin": "B0GGR3SW65",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0GGR3SW65",
+"product_name": "Xiaomi Smart Double Stack Air Fryer 12L – Large Capacity Dual-Basket Air Fryer, 2800W High-Power Rapid 360° Hot Air Cook",
+"category": "Air Fryers",
+"lowest_price": 546.0,
+"seller": "inditexstore",
+"rating": 3.8,
+"review_count": null,
+"last_updated": "2026-08-14 15:38"
+},
+{
+"asin": "B0BKS2WPC1",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0BKS2WPC1",
+"product_name": "Xiaomi Humidifier 2 Lite|300mL/h humidifying capacity |Silver ion antibacterial technology | White",
+"category": "Humidifiers",
+"lowest_price": 102.0,
+"seller": "Smart Traders.",
+"rating": 5.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:38"
+},
+{
+"asin": "B0BC9SDP8Z",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0BC9SDP8Z",
+"product_name": "Xiaomi Smart Humidifier 2, 4.5L Large Capacity, UV-C Sterilization, 350mL/h Mist Output, Smart Humidity Control, 32h Run",
+"category": "Humidifiers",
+"lowest_price": 155.0,
+"seller": "Smart Traders.",
+"rating": 5.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:38"
+},
+{
+"asin": "B0FTNS9F4X",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FTNS9F4X",
+"product_name": "Xiaomi Smart Desktop Air Circulation Fan – 1180 m³/h Airflow, 3D Oscillation 120°/100°, Type-C/Power Bank Mode, Quiet 28",
+"category": "Fans",
+"lowest_price": 239.0,
+"seller": "Smart Traders.",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:39"
+},
+{
+"asin": "B0F91YQJ6Y",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0F91YQJ6Y",
+"product_name": "Xiaomi Smart Tower Fan 2 – Quiet 150° Oscillating Tower Fan with Smart App Control, 3 Modes, 10m Coverage, Energy Effici",
+"category": "Fans",
+"lowest_price": 267.0,
+"seller": "Smart Traders.",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:39"
+},
+{
+"asin": "B0FR2HZKK3",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FR2HZKK3",
+"product_name": "Xiaomi Smart Standing Air Circulation Fan, 1440m³/h Airflow, 13m Range, 100° Vertical &amp; 120° Horizontal Oscillation,",
+"category": "Fans",
+"lowest_price": 245.0,
+"seller": "Smart Traders.",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:39"
+},
+{
+"asin": "B0GD72VBVY",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0GD72VBVY",
+"product_name": "Xiaomi Smart Dehumidifier, 20L Daily Capacity, Smart Operation, 5 Noise-Reduction Designs",
+"category": "Humidifiers",
+"lowest_price": 849.0,
+"seller": "inditexstore",
+"rating": 2.8,
+"review_count": null,
+"last_updated": "2026-08-14 15:39"
+},
+{
+"asin": "B0DNB9PH2J",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0DNB9PH2J",
+"product_name": "Xiaomi Smart Dehumidifier Lite – 13L/Day Capacity, 3L Tank, Quiet Operation, Smart App Control, Perfect for Home &amp; L",
+"category": "Humidifiers",
+"lowest_price": 593.0,
+"seller": "Smart Traders.",
+"rating": 3.8,
+"review_count": null,
+"last_updated": "2026-08-14 15:40"
+},
+{
+"asin": "B0D1CHZ98F",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0D1CHZ98F",
+"product_name": "Xiaomi Mi Smart Standing Fan 2 Pro– Quiet Cooling, Smart App &amp; Voice Control, 20 m³/min Airflow, 15 W DC Motor, 140°",
+"category": "Fans",
+"lowest_price": 267.0,
+"seller": "Amazon.ae",
+"rating": 4.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:40"
+},
+{
+"asin": "B0G6YR2S18",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0G6YR2S18",
+"product_name": "Xiaomi Dust Mite Vacuum Cleaner 2 Pro 16000  Pa Powerful Suction 72,000 taps/min Clean UV Sterilization",
+"category": "Dust Mite Vacuums",
+"lowest_price": 249.0,
+"seller": "Amazon.ae",
+"rating": 4.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:40"
+},
+{
+"asin": "B0DNG76GQ7",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0DNG76GQ7",
+"product_name": "Xiaomi Dust Mite Vacuum Cleaner – Handheld for Beds, Sofas &amp; Textiles with 12,000 Pa Suction, UV Sterilization and D",
+"category": "Dust Mite Vacuums",
+"lowest_price": 169.0,
+"seller": "Amazon.ae",
+"rating": 4.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:40"
+},
+{
+"asin": "B0D8LDV7F3",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0D8LDV7F3",
+"product_name": "Xiaomi Truclean W20 Wet and Dry Vacuum Cleaner for Home, Cordless Floor Washer with Self-Cleaning，15000Pa suction power，",
+"category": "Wet/Dry Vacuums",
+"lowest_price": 457.06,
+"seller": "Amazon.ae",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:41"
+},
+{
+"asin": "B0DK6RYVN4",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0DK6RYVN4",
+"product_name": "Xiaomi Dust Mite Vacuum Cleaner Pro – Powerful 14kPa Suction, UV Sterilization, HEPA Filtration, Hot air drying, Ideal f",
+"category": "Dust Mite Vacuums",
+"lowest_price": 249.0,
+"seller": "Amazon.ae",
+"rating": 4.4,
+"review_count": null,
+"last_updated": "2026-08-14 15:41"
+},
+{
+"asin": "B08N5YC26R",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B08N5YC26R",
+"product_name": "Xiaomi P30 Cordless Vacuum Cleaner, 22,000 Pa, Strong Suction, Lightweight 860 g, 40 Minutes Continuous Operation, 5-Sta",
+"category": "Cordless Vacuums",
+"lowest_price": 264.0,
+"seller": "inditexstore",
+"rating": 3.6,
+"review_count": null,
+"last_updated": "2026-08-14 15:41"
+},
+{
+"asin": "B0G644TS1K",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0G644TS1K",
+"product_name": "Xiaomi W30 Pro Wet/Dry Vacuum Cleaner—18kPa suction with 1000 ml water tank, Anti-Tangle, High-temperature odour-removin",
+"category": "Wet/Dry Vacuums",
+"lowest_price": 918.0,
+"seller": "Amazon.ae",
+"rating": 3.1,
+"review_count": null,
+"last_updated": "2026-08-14 15:41"
+},
+{
+"asin": "B0D8LJ81NK",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0D8LJ81NK",
+"product_name": "Xiaomi G20 Lite Cordless Vacuum ‒ Powerful Cyclone Suction, White-Light Dust Detection &amp; 45-Min Runtime ‒ Lightweigh",
+"category": "Cordless Vacuums",
+"lowest_price": 281.99,
+"seller": "Amazon.ae",
+"rating": 4.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:41"
+},
+{
+"asin": "B098Q3KTX6",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B098Q3KTX6",
+"product_name": "Xiaomi Vacuum Cleaner Mini – Ultra-Portable Handheld Vacuum, 13,000 Pa Suction, max 30-minute running time, Type-C Charg",
+"category": "Cordless Vacuums",
+"lowest_price": 135.0,
+"seller": "Amazon.ae",
+"rating": 4.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:42"
+},
+{
+"asin": "B0DHS9X9YN",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0DHS9X9YN",
+"product_name": "Xiaomi Vacuum Cleaner G20 – 150AW Powerful Suction, 60-min Runtime, LED Floor Brush, 12-Cyclone Filtration, 99.9% Dust R",
+"category": "Cordless Vacuums",
+"lowest_price": 657.0,
+"seller": "MubiRal Tech",
+"rating": 3.4,
+"review_count": null,
+"last_updated": "2026-08-14 15:42"
+},
+{
+"asin": "B0DJMHC6QQ",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0DJMHC6QQ",
+"product_name": "Xiaomi G20 Max Cordless Vacuum Cleaner, 25000Pa 180AW Ultra-Strong Suction, Anti-Tangle Brush, 5-Stage Filtration, LED D",
+"category": "Cordless Vacuums",
+"lowest_price": 999.0,
+"seller": "Cravers Express",
+"rating": 3.1,
+"review_count": null,
+"last_updated": "2026-08-14 15:42"
+},
+{
+"asin": "B0FY73F3CD",
+"platform": "amazon",
+"brand": "Xiaomi",
+"product_url": "https://www.amazon.ae/dp/B0FY73F3CD",
+"product_name": "Xiaomi Vacuum Cleaner G30 Max, Cordless Stick Vacuum Cleaner with Smart Auto Suction, Up to 280AW Suction Power, LED Dis",
+"category": "Cordless Vacuums",
+"lowest_price": 1279.98,
+"seller": "Amazon.ae",
+"rating": 4.0,
+"review_count": null,
+"last_updated": "2026-08-14 15:42"
+}
+];
+let sortKey='asin',sortAsc=true;
+function render(){
+const cat=document.getElementById('filterCategory').value;
+const q=document.getElementById('searchBox').value.toLowerCase();
+let f=ALL_PRODUCTS.filter(p=>{if(cat&&p.category!==cat)return false;if(q&&!p.asin.toLowerCase().includes(q)&&!(p.product_name||'').toLowerCase().includes(q))return false;return true});
+f.sort((a,b)=>{let va=a[sortKey]??'',vb=b[sortKey]??'';if(sortKey==='lowest_price'||sortKey==='rating'||sortKey==='review_count'){va=parseFloat(va)||0;vb=parseFloat(vb)||0}if(va<vb)return sortAsc?-1:1;if(va>vb)return sortAsc?1:-1;return 0});
+const wp=ALL_PRODUCTS.filter(p=>p.lowest_price),ws=ALL_PRODUCTS.filter(p=>p.seller);
+const cats=[...new Set(ALL_PRODUCTS.map(p=>p.category).filter(Boolean))];
+const today=ALL_PRODUCTS[0]?ALL_PRODUCTS[0].last_updated:'';
+document.getElementById('subtitle').textContent=ALL_PRODUCTS.length+' products tracked | Amazon.ae | Updated: '+today;
+document.getElementById('kpis').innerHTML='<div class="kpi"><div class="label">Total Products</div><div class="value">'+ALL_PRODUCTS.length+'</div><div class="sub">ASINs tracked</div></div><div class="kpi"><div class="label">With Price</div><div class="value">'+wp.length+'<span class="unit">/ '+ALL_PRODUCTS.length+'</span></div><div class="sub">'+(ALL_PRODUCTS.length-wp.length)+' awaiting data</div></div><div class="kpi"><div class="label">With Seller</div><div class="value">'+ws.length+'</div><div class="sub">seller info captured</div></div>';
+const sel=document.getElementById('filterCategory'),cur=sel.value;
+sel.innerHTML='<option value="">All Categories</option>'+cats.map(c=>'<option value="'+c+'" '+(c===cur?'selected':'')+'>'+c+'</option>').join('');
+document.getElementById('tbody').innerHTML=f.map(p=>'<tr><td><a class="asin-link" href="'+p.product_url+'" target="_blank">'+p.asin+'</a></td><td>'+(p.product_name?'<span class="badge xiaomi">Xiaomi</span> '+p.product_name:'<span class="no-data">'+p.asin+'</span>')+'</td><td>'+(p.category||'<span class="no-data">-</span>')+'</td><td>'+(p.lowest_price?'<span class="price">AED '+p.lowest_price.toFixed(2)+'</span>':'<span class="no-data">-</span>')+'</td><td class="seller" title="'+(p.seller||'')+'">'+(p.seller||'<span class="no-data">-</span>')+'</td><td>'+(p.rating?'<span class="rating">'+p.rating.toFixed(1)+' / 5</span>':'<span class="no-data">-</span>')+'</td><td>'+(p.review_count?p.review_count.toLocaleString():'<span class="no-data">-</span>')+'</td><td>'+(p.last_updated||'<span class="no-data">-</span>')+'</td></tr>').join('');
+document.getElementById('resultCount').textContent='Showing '+f.length+' of '+ALL_PRODUCTS.length+' products';
+}
+function sortTable(k){if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true}render()}
+function exportCSV(){var h=['ASIN','Product','Category','Price','Seller','Rating','Reviews','URL','Updated'];var r=ALL_PRODUCTS.map(function(p){return[p.asin,p.product_name||'',p.category||'',p.lowest_price||'',p.seller||'',p.rating||'',p.review_count||'',p.product_url,p.last_updated||'']});var csv=[h].concat(r).map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"'}).join(',')}).join('\n');var b=new Blob([csv],{type:'text/csv'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='xiaomi-tracker-'+new Date().toISOString().slice(0,10)+'.csv';a.click()}
+document.getElementById('filterCategory').addEventListener('change',render);
+document.getElementById('searchBox').addEventListener('input',render);
+render();
+</script>
+</body>
+</html>
